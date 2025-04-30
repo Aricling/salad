@@ -72,12 +72,12 @@ Follow ```visualize_attn.ipynb``` if you want to see the attention maps produced
 ## Training from Scratch
 For training VAE, follow this:
 ```
-python train_vae.py --name vae_example --vae_type vae --lambda_kl 2e-2 --activation silu --dataset_name t2m
+python train_vae.py --name vae_example --dataset_name t2m
 ```
 
 For training denoiser, follow this:
 ```
-python train_denoiser.py --name denoiser_example --vae_name vae_example --latent_dim 256 --n_heads 8 --ff_dim 1024 --n_layers 5 --num_inference_timesteps 20
+python train_denoiser.py --name denoiser_example --vae_name vae_example
 ```
 
 ## Evaluation
