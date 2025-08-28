@@ -107,7 +107,7 @@ class STConv(nn.Module):
 
         # temporal conv
         temp_in = x.permute(0, 2, 3, 1).reshape(B * J, D, T)
-        temp_out = self.temp_conv(temp_in)
+        temp_out = self.temp_conv(temp_in)  ## 这个temp_conv维度其实没有变，只是结合了相邻帧的信息
         temp_out = temp_out.reshape(B, J, -1, T).permute(0, 3, 1, 2)
         
         out = graph_out + temp_out

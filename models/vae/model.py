@@ -26,8 +26,8 @@ class VAE(nn.Module):
             param.requires_grad = False
 
     def encode(self, x):
-        x = self.motion_enc(x)
-        x = self.conv_enc(x)
+        x = self.motion_enc(x)  ## 它的职责其实只是把每一个关节点变成到一样的维度
+        x = self.conv_enc(x)    ## 真正的图卷积，时间卷积和降维其实都是这里做的
 
         # latent space
         x = self.dist(x)
@@ -39,7 +39,7 @@ class VAE(nn.Module):
         return z, {"loss_kl": loss_kl}
     
     def decode(self, x):
-        x = self.conv_dec(x)
+        x = self.conv_dec(x)    ## len也是2, x.shape=[32,196,22,32]
         x = self.motion_dec(x)
         return x
     

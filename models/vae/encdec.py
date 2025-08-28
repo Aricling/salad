@@ -146,7 +146,7 @@ class STConvEncoder(nn.Module):
 
         # network
         self.layers = nn.ModuleList()
-        for i in range(opt.n_layers):
+        for i in range(opt.n_layers):   ## 2
             layers = []
             for _ in range(opt.n_extra_layers):
                 layers.append(ResSTConv(

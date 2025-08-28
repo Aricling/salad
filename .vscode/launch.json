@@ -1,0 +1,22 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug train_vae.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "train_vae.py",
+            "args": [
+                "--name", "vae_example",
+                "--dataset_name", "t2m"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",  // 可选：设置工作目录为项目根目录
+            "env": {},  // 可选：设置环境变量
+            "justMyCode": true  // 可选：只调试用户代码，跳过库代码
+        }
+    ]
+}

@@ -69,7 +69,7 @@ class STPool(nn.Module):
                 [6, 10],
                 [9],
                 [6],
-            ])
+            ])  ## 这里返回的不是一个矩阵，但是是一个俩俩pair的结果
                 
         elif depth == 1:
             weight = torch.zeros(7, 12)
