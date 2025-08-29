@@ -20,6 +20,8 @@ from data.t2m_dataset import Text2MotionDataset
 from motion_loaders.dataset_motion_loader import get_dataset_motion_loader
 from models.t2m_eval_wrapper import EvaluatorModelWrapper
 
+import z_config
+
 
 def plot_t2m(data, save_dir, captions, m_lengths):
     data = train_dataset.inv_transform(data)
@@ -48,6 +50,8 @@ def load_and_freeze_vae(opt):
 
 
 if __name__ == '__main__':
+    z_config.init_diy_config()
+
     opt = arg_parse(True)
     fixseed(opt.seed)
 

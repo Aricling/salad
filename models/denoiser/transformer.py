@@ -194,7 +194,7 @@ class STTransformerLayer(nn.Module):
         B, T, J, D = x.size()
 
         # diffusion timestep embedding
-        skel_cond = self.skel_film(cond)
+        skel_cond = self.skel_film(cond)    ## 这个其实就是diffusion的time
         temp_cond = self.temp_film(cond)
         cross_cond = self.cross_film(cond)
         ffn_cond = self.ffn_film(cond)

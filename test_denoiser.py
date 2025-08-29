@@ -13,6 +13,8 @@ from utils.fixseed import fixseed
 from motion_loaders.dataset_motion_loader import get_dataset_motion_loader
 from models.t2m_eval_wrapper import EvaluatorModelWrapper
 
+import z_config
+
 
 def load_vae(vae_opt):
     print(f'Loading VAE Model {vae_opt.name}')
@@ -37,6 +39,7 @@ def load_denoiser(opt, vae_dim):
 
 
 if __name__ == '__main__':
+    z_config.init_diy_config()
     opt = arg_parse(False)
     vae_name = get_opt(pjoin(opt.checkpoints_dir, opt.dataset_name, opt.name, 'opt.txt'), opt.device).vae_name
     vae_opt = get_opt(pjoin(opt.checkpoints_dir, opt.dataset_name, vae_name, 'opt.txt'), opt.device)

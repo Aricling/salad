@@ -17,6 +17,20 @@
             "cwd": "${workspaceFolder}",  // 可选：设置工作目录为项目根目录
             "env": {},  // 可选：设置环境变量
             "justMyCode": true  // 可选：只调试用户代码，跳过库代码
+        },
+        {
+            "name": "Debug train_denoiser.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "train_denoiser.py",
+            "args": [
+                "--name", "train_wi_fted_clip_try_0",
+                "--vae_name", "t2m_vae_gelu"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {},  // 可选：设置环境变量
+            "justMyCode": false 
         }
     ]
 }
