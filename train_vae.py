@@ -44,16 +44,16 @@ if __name__ == "__main__":
     eval_val_loader, _ = get_dataset_motion_loader(opt.dataset_opt_path, 32, 'val', device=opt.device)
 
     # dataset & dataloader
-    mean = np.load(pjoin(wrapper_opt.meta_dir, 'mean.npy'))
+    mean = np.load(pjoin(wrapper_opt.meta_dir, 'mean.npy')) ## ./checkpoints/t2m/Comp_v6_KLD005/meta
     std = np.load(pjoin(wrapper_opt.meta_dir, 'std.npy'))
 
-    train_split_file = pjoin(opt.data_root, 'train.txt')
-    val_split_file = pjoin(opt.data_root, 'val.txt')
+    train_split_file = pjoin(opt.data_root, 'train.txt')    ## ./dataset/humanml3d/
+    val_split_file = pjoin(opt.data_root, 'val.txt')   ## LOOK UP! 其实被我改成了test，不是eval了
 
     train_dataset = MotionDataset(opt, mean, std, train_split_file)
     val_dataset = MotionDataset(opt, mean, std, val_split_file)
 
-    train_loader = DataLoader(train_dataset, batch_size=opt.batch_size, drop_last=True, num_workers=opt.num_workers, shuffle=True, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=opt.batch_size, drop_last=True, num_workers=opt.num_workers, shuffle=True, pin_memory=True) ## bs=256
     val_loader = DataLoader(val_dataset, batch_size=opt.batch_size, drop_last=True, num_workers=opt.num_workers, shuffle=True, pin_memory=True)
 
     # train

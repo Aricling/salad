@@ -26,7 +26,7 @@ class VAETrainer:
                 self.recon_criterion = torch.nn.SmoothL1Loss()
         
 
-    def train_forward(self, batch_data):
+    def train_forward(self, batch_data, MB_rep_data):
         motion = batch_data.to(self.opt.device, dtype=torch.float32)
         root, ric, rot, vel, contact = torch.split(motion, [4, 3 * (self.opt.joints_num - 1), 6 * (self.opt.joints_num - 1), 3 * self.opt.joints_num, 4], dim=-1)
 
@@ -80,40 +80,42 @@ class VAETrainer:
         self.vae.to(self.opt.device)
 
         # optimizer
-        self.optim = torch.optim.AdamW(self.vae.parameters(), lr=self.opt.lr, betas=(0.9, 0.99), weight_decay=self.opt.weight_decay)
-        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optim, milestones=self.opt.milestones, gamma=self.opt.gamma)
+        self.optim = torch.optim.AdamW(self.vae.parameters(), lr=self.opt.lr, betas=(0.9, 0.99), weight_decay=self.opt.weight_decay)    ## lr=2e-4, weight_decay = 0
+        self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optim, milestones=self.opt.milestones, gamma=self.opt.gamma) ## milestones=[150000, 250000], gamma = 0.05
 
         epoch = 0
         it = 0
-        if self.opt.is_continue:
+        if self.opt.is_continue:    ## False
             model_dir = pjoin(self.opt.model_dir, 'latest.tar')
             epoch, it = self.resume(model_dir)
             print("Load model epoch:%d iterations:%d"%(epoch, it))
 
         start_time = time.time()
-        total_iters = self.opt.max_epoch * len(train_loader)
+        total_iters = self.opt.max_epoch * len(train_loader)    ## 返回的是cumsum的结果，实际的训练个数应该是20942。此处结果大约是7217
         print(f'Total Epochs: {self.opt.max_epoch}, Total Iters: {total_iters}')
         print('Iters Per Epoch, Training: %04d, Validation: %03d' % (len(train_loader), len(eval_val_loader)))
         logs = defaultdict(def_value, OrderedDict())
 
         # eval
-        best_fid, best_div, best_top1, best_top2, best_top3, best_matching, writer = evaluation_vae(
-            self.opt.model_dir, eval_val_loader, self.vae, self.logger, epoch, best_fid=1000,
-            best_div=100, best_top1=0,
-            best_top2=0, best_top3=0, best_matching=100,
-            eval_wrapper=eval_wrapper, save=False)
+        # best_fid, best_div, best_top1, best_top2, best_top3, best_matching, writer = evaluation_vae(
+        #     self.opt.model_dir, eval_val_loader, self.vae, self.logger, epoch, best_fid=1000,
+        #     best_div=100, best_top1=0,
+        #     best_top2=0, best_top3=0, best_matching=100,
+        #     eval_wrapper=eval_wrapper, save=False)
 
         # training loop
         while epoch < self.opt.max_epoch:
             self.vae.train()
-            for i, batch_data in enumerate(train_loader):
+            for i, data in enumerate(train_loader):
+                batch_data = data[0]
+                MB_rep_data = data[1]
                 it += 1
                 if it < self.opt.warm_up_iter:
                     curr_lr = self.update_lr_warm_up(it, self.opt.warm_up_iter, self.opt.lr)
 
                 # forward
                 self.optim.zero_grad()
-                loss, loss_dict = self.train_forward(batch_data)
+                loss, loss_dict = self.train_forward(batch_data, MB_rep_data)
                 loss.backward()
                 self.optim.step()
 

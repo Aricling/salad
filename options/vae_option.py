@@ -67,6 +67,7 @@ def arg_parse(is_train=False):
 
     # non-saved options
     if opt.dataset_name == "t2m":
+        opt.MB_motion_data_dir = "/data/mengqing/HumanML3D_MB_rep"
         opt.data_root = './dataset/humanml3d/'
         opt.motion_dir = pjoin(opt.data_root, 'new_joint_vecs')
         opt.text_dir = pjoin(opt.data_root, 'texts')

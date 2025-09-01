@@ -6,6 +6,7 @@ from tqdm import tqdm
 from torch.utils.data._utils.collate import default_collate
 import random
 import codecs as cs
+import os
 
 
 def collate_fn(batch):
@@ -19,24 +20,37 @@ class MotionDataset(data.Dataset):
 
         self.data = []
         self.lengths = []
+        self.name_list = []
         id_list = []
         with open(split_file, 'r') as f:
             for line in f.readlines():
                 id_list.append(line.strip())
 
+        self.not_exists_name_list = []
         for name in tqdm(id_list):
             try:
                 motion = np.load(pjoin(opt.motion_dir, name + '.npy'))
                 if motion.shape[0] < opt.window_size:
                     continue
+
+                # 改进：只检查文件是否存在，不加载
+                mb_file_path = pjoin(opt.MB_motion_data_dir, name + '.npy')
+                if not os.path.exists(mb_file_path):
+                    self.not_exists_name_list.append(name)
+                    print(f"Missing MB file: {mb_file_path}")
+                    continue  # 直接跳过，不再进入 except
+
+                # 只有前面都通过，才记录
+                self.name_list.append(name)
                 self.lengths.append(motion.shape[0] - opt.window_size)
                 self.data.append(motion)
-            except Exception as e:
-                # Some motion may not exist in KIT dataset
-                print(e)
-                pass
 
-        self.cumsum = np.cumsum([0] + self.lengths)
+            except Exception as e:
+                # 捕获 motion 加载失败的情况（比如 motion 文件损坏）
+                self.not_exists_name_list.append(name)
+                print(f"Failed to load motion: {name}, error: {e}")
+
+        self.cumsum = np.cumsum([0] + self.lengths) ## 其实就是另外一种数据索引的方式
 
         self.mean = mean
         self.std = std
@@ -58,8 +72,9 @@ class MotionDataset(data.Dataset):
         motion = self.data[motion_id][idx:idx + self.opt.window_size]
         "Z Normalization"
         motion = (motion - self.mean) / self.std
+        MB_motion_rep = np.load(pjoin(self.opt.MB_motion_data_dir, self.name_list[motion_id]+ ".npy"))[idx:idx + self.opt.window_size]
 
-        return motion
+        return motion, MB_motion_rep
 
 
 class Text2MotionDatasetEval(data.Dataset):
