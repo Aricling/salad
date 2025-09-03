@@ -174,3 +174,4 @@ visualization/data
 .ipynb_checkpoints/
 dataset/humanml3d
 MotionBERT
+z_code.sh
