@@ -74,7 +74,7 @@ class MotionDataset(data.Dataset):
         motion = (motion - self.mean) / self.std
         MB_motion_rep = np.load(pjoin(self.opt.MB_motion_data_dir, self.name_list[motion_id]+ ".npy"))[idx:idx + self.opt.window_size]
 
-        return motion, MB_motion_rep
+        return motion, MB_motion_rep, self.name_list[motion_id]
 
 
 class Text2MotionDatasetEval(data.Dataset):
@@ -123,12 +123,15 @@ class Text2MotionDatasetEval(data.Dataset):
                                 n_motion = motion[int(f_tag*20) : int(to_tag*20)]
                                 if (len(n_motion)) < min_motion_len or (len(n_motion) >= 200):
                                     continue
-                                new_name = random.choice('ABCDEFGHIJKLMNOPQRSTUVW') + '_' + name
-                                while new_name in data_dict:
-                                    new_name = random.choice('ABCDEFGHIJKLMNOPQRSTUVW') + '_' + name
-                                data_dict[new_name] = {'motion': n_motion,
+                                for letter in 'ABCDEFGHIJKLMNOPQRSTUVW':
+                                        candidate = f"{letter}_{name}"
+                                        if candidate not in data_dict:
+                                            new_name = candidate
+                                            break
+                                data_dict[new_name] = {'MB_motion': np.load(pjoin(opt.MB_motion_data_dir, new_name+'.npy')),
                                                        'length': len(n_motion),
                                                        'text':[text_dict]}
+                                assert len(data_dict[new_name]['MB_motion']==len(n_motion)), "MB_motion not equal to motion length"
                                 new_name_list.append(new_name)
                                 length_list.append(len(n_motion))
                             except:
@@ -137,9 +140,10 @@ class Text2MotionDatasetEval(data.Dataset):
                                 # break
 
                 if flag:
-                    data_dict[name] = {'motion': motion,
+                    data_dict[name] = {'MB_motion': np.load(pjoin(opt.MB_motion_data_dir, name+'.npy')),
                                        'length': len(motion),
                                        'text': text_data}
+                    assert len(data_dict[name]['MB_motion'])==len(motion), "MB_motion not equal to motion length"
                     new_name_list.append(name)
                     length_list.append(len(motion))
             except:
@@ -169,7 +173,7 @@ class Text2MotionDatasetEval(data.Dataset):
     def __getitem__(self, item):
         idx = self.pointer + item
         data = self.data_dict[self.name_list[idx]]
-        motion, m_length, text_list = data['motion'], data['length'], data['text']
+        MB_motion, m_length, text_list = data['MB_motion'], data['length'], data['text']
         # Randomly select a caption
         text_data = random.choice(text_list)
         caption, tokens = text_data['caption'], text_data['tokens']
@@ -202,19 +206,19 @@ class Text2MotionDatasetEval(data.Dataset):
             m_length = (m_length // self.opt.unit_length - 1) * self.opt.unit_length
         elif coin2 == 'single':
             m_length = (m_length // self.opt.unit_length) * self.opt.unit_length
-        idx = random.randint(0, len(motion) - m_length)
-        motion = motion[idx:idx+m_length]
+        idx = random.randint(0, len(MB_motion) - m_length)
+        MB_motion = MB_motion[idx:idx+m_length]
 
         "Z Normalization"
-        motion = (motion - self.mean) / self.std
+        # motion = (motion - self.mean) / self.std  ## MotionBert 表示不需要归一化，已经归一化过了
 
         if m_length < self.max_motion_length:
-            motion = np.concatenate([motion,
-                                     np.zeros((self.max_motion_length - m_length, motion.shape[1]))
+            MB_motion = np.concatenate([MB_motion,
+                                     np.zeros((self.max_motion_length - m_length, *MB_motion.shape[-2:]))
                                      ], axis=0)
         # print(word_embeddings.shape, motion.shape)
         # print(tokens)
-        return word_embeddings, pos_one_hots, caption, sent_len, motion, m_length, '_'.join(tokens)
+        return word_embeddings, pos_one_hots, caption, sent_len, MB_motion, m_length, '_'.join(tokens)
 
 
 class Text2MotionDataset(data.Dataset):

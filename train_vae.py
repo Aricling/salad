@@ -17,15 +17,24 @@ from utils.motion_process import recover_from_ric
 from utils.plot_script import plot_3d_motion
 from utils.fixseed import fixseed
 
+from MotionBERT.infer_wild_multiple import plot_MB_rep_interface
+
 os.environ["OMP_NUM_THREADS"] = "1"
 
-def plot_t2m(data, save_dir):
-    data = train_dataset.inv_transform(data)
-    for i in range(len(data)):
-        joint_data = data[i]
-        joint = recover_from_ric(torch.from_numpy(joint_data).float(), opt.joints_num).numpy()
-        save_path = pjoin(save_dir, '%02d.mp4' % (i))
-        plot_3d_motion(save_path, opt.kinematic_chain, joint, title="None", fps=opt.fps, radius=opt.radius)
+def plot_t2m(MB_motion_data = None, name_list = None, texts_list = None, save_dir = None):
+    # data = train_dataset.inv_transform(data)
+    motion_emb_mean = np.load("/home/mengqing/usr/motion-diffusion-model/dataset/motion_emb_mean.npy")
+    motion_emb_std = np.load("/home/mengqing/usr/motion-diffusion-model/dataset/motion_emb_std.npy")
+    for i in range(len(MB_motion_data)):
+        MB_motion = MB_motion_data[i:i+1]
+        name = [name_list[i%4]]
+        if i // 4 ==0:
+            save_path = pjoin(save_dir, 'gt')
+        else:
+            save_path = pjoin(save_dir, 'pred')
+        plot_MB_rep_interface(MB_motion, seq_names = name, output_path = save_path,
+                              mean=motion_emb_mean, std=motion_emb_std)
+
 
 
 if __name__ == "__main__":
@@ -41,7 +50,7 @@ if __name__ == "__main__":
     # evaluation setup
     wrapper_opt = get_opt(opt.dataset_opt_path, torch.device('cuda'))
     eval_wrapper = EvaluatorModelWrapper(wrapper_opt)
-    eval_val_loader, _ = get_dataset_motion_loader(opt.dataset_opt_path, 32, 'val', device=opt.device)
+    eval_val_loader, _ = get_dataset_motion_loader(opt.dataset_opt_path, 32, 'val', device=opt.device)  ## 这个用的其实就是val.txt
 
     # dataset & dataloader
     mean = np.load(pjoin(wrapper_opt.meta_dir, 'mean.npy')) ## ./checkpoints/t2m/Comp_v6_KLD005/meta
@@ -51,7 +60,7 @@ if __name__ == "__main__":
     val_split_file = pjoin(opt.data_root, 'val.txt')   ## LOOK UP! 其实被我改成了test，不是eval了
 
     train_dataset = MotionDataset(opt, mean, std, train_split_file)
-    val_dataset = MotionDataset(opt, mean, std, val_split_file)
+    val_dataset = MotionDataset(opt, mean, std, val_split_file) ## 这个split_file其实和上面的eval_val_loader
 
     train_loader = DataLoader(train_dataset, batch_size=opt.batch_size, drop_last=True, num_workers=opt.num_workers, shuffle=True, pin_memory=True) ## bs=256
     val_loader = DataLoader(val_dataset, batch_size=opt.batch_size, drop_last=True, num_workers=opt.num_workers, shuffle=True, pin_memory=True)

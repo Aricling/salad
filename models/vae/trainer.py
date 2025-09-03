@@ -26,27 +26,22 @@ class VAETrainer:
                 self.recon_criterion = torch.nn.SmoothL1Loss()
         
 
-    def train_forward(self, batch_data, MB_rep_data):
-        motion = batch_data.to(self.opt.device, dtype=torch.float32)
-        root, ric, rot, vel, contact = torch.split(motion, [4, 3 * (self.opt.joints_num - 1), 6 * (self.opt.joints_num - 1), 3 * self.opt.joints_num, 4], dim=-1)
+    def train_forward(self, MB_rep_data, name_list):
+        MB_motion = MB_rep_data.to(self.opt.device, dtype=torch.float32)
 
-        pred_motion, loss_dict = self.vae.forward(motion)
-        pred_root, pred_ric, pred_rot, pred_vel, pred_contact = torch.split(pred_motion, [4, 3 * (self.opt.joints_num - 1), 6 * (self.opt.joints_num - 1), 3 * self.opt.joints_num, 4], dim=-1)
+        pred_MB_motion, loss_dict = self.vae.forward(MB_motion)
 
-        self.motion = motion
-        self.pred_motion = pred_motion
+        self.MB_motion = MB_motion
+        self.pred_MB_motion = pred_MB_motion
+        self.name_list=name_list
 
         # loss
-        loss_rec = self.recon_criterion(pred_motion, motion)
-        loss_vel = self.recon_criterion(pred_vel, vel)
-        loss_pos = self.recon_criterion(pred_ric, ric)
+        loss_rec = self.recon_criterion(pred_MB_motion, MB_motion)
         loss_kl = loss_dict["loss_kl"]
 
-        loss = loss_rec + loss_vel * self.opt.lambda_vel + loss_pos * self.opt.lambda_pos + loss_kl * self.opt.lambda_kl
+        loss = loss_rec + loss_kl * self.opt.lambda_kl
 
         loss_dict["loss_recon"] = loss_rec
-        loss_dict["loss_vel"] = loss_vel
-        loss_dict["loss_pos"] = loss_pos
 
         return loss, loss_dict
 
@@ -97,11 +92,9 @@ class VAETrainer:
         logs = defaultdict(def_value, OrderedDict())
 
         # eval
-        # best_fid, best_div, best_top1, best_top2, best_top3, best_matching, writer = evaluation_vae(
-        #     self.opt.model_dir, eval_val_loader, self.vae, self.logger, epoch, best_fid=1000,
-        #     best_div=100, best_top1=0,
-        #     best_top2=0, best_top3=0, best_matching=100,
-        #     eval_wrapper=eval_wrapper, save=False)
+        best_mse, writer = evaluation_vae(
+            self.opt.model_dir, eval_val_loader, self.vae, self.logger, epoch, best_mse=100000, 
+            eval_wrapper=eval_wrapper, save=False)
 
         # training loop
         while epoch < self.opt.max_epoch:
@@ -109,13 +102,14 @@ class VAETrainer:
             for i, data in enumerate(train_loader):
                 batch_data = data[0]
                 MB_rep_data = data[1]
-                it += 1
+                name_list = data[2]
+                it += 1 ## 这里的it就是steps的意思
                 if it < self.opt.warm_up_iter:
                     curr_lr = self.update_lr_warm_up(it, self.opt.warm_up_iter, self.opt.lr)
 
                 # forward
                 self.optim.zero_grad()
-                loss, loss_dict = self.train_forward(batch_data, MB_rep_data)
+                loss, loss_dict = self.train_forward(MB_rep_data, name_list)
                 loss.backward()
                 self.optim.step()
 
@@ -137,7 +131,7 @@ class VAETrainer:
                     print_current_loss(start_time, it, total_iters, mean_loss, epoch=epoch, inner_iter=i)
 
                 if it % self.opt.save_latest == 0:
-                    self.save(pjoin(self.opt.model_dir, 'latest.tar'), epoch, it)
+                    self.save(pjoin(self.opt.model_dir, f'{str(epoch)}_{str(it)}.tar'), epoch, it)
 
             self.save(pjoin(self.opt.model_dir, 'latest.tar'), epoch, it)
 
@@ -146,8 +140,11 @@ class VAETrainer:
             self.vae.eval()
             val_log = defaultdict(def_value, OrderedDict())
             with torch.no_grad():
-                for i, batch_data in enumerate(val_loader):
-                    loss, loss_dict = self.train_forward(batch_data)
+                for i, data in enumerate(val_loader):
+                    batch_data = data[0]
+                    MB_rep_data = data[1]
+                    name_list = data[2]
+                    loss, loss_dict = self.train_forward(MB_rep_data, name_list)
 
                     val_log["loss"] += loss.item()
                     for tag, value in loss_dict.items():
@@ -161,15 +158,16 @@ class VAETrainer:
             
             # evaluation
             if epoch % self.opt.eval_every_e == 0:
-                best_fid, best_div, best_top1, best_top2, best_top3, best_matching, writer = evaluation_vae(
-                    self.opt.model_dir, eval_val_loader, self.vae, self.logger, epoch, best_fid=best_fid,
-                    best_div=best_div, best_top1=best_top1,
-                    best_top2=best_top2, best_top3=best_top3, best_matching=best_matching, eval_wrapper=eval_wrapper)
+                best_mse, writer = evaluation_vae(
+                    self.opt.model_dir, eval_val_loader, self.vae, self.logger, epoch, best_mse=best_mse, 
+                    eval_wrapper=eval_wrapper, save=False)
 
-                data = torch.cat([self.motion[:4], self.pred_motion[:4]], dim=0).detach().cpu().numpy()
+                # data = torch.cat([self.motion[:4], self.pred_motion[:4]], dim=0).detach().cpu().numpy()
+                data = torch.cat([self.MB_motion[:4], self.pred_MB_motion[:4]], dim=0).detach().cpu().numpy() ## [256,64,17,512]->两个cat成[512,64,17,512]
+                   
                 save_dir = pjoin(self.opt.eval_dir, 'E%04d' % (epoch))
                 os.makedirs(save_dir, exist_ok=True)
-                plot_eval(data, save_dir)
+                plot_eval(MB_motion_data = data, name_list=self.name_list[:4], save_dir = save_dir)
     
     
     @torch.no_grad()

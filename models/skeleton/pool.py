@@ -24,20 +24,35 @@ class STPool(nn.Module):
     def _get_skeleton_pooling(self, dataset, depth):
         if depth == 0:
             if dataset == "t2m":
-                weight = torch.zeros(12, 22)
+                # weight = torch.zeros(12, 22)
+                weight = torch.zeros(12, 17)
+                # mapping = [
+                #     [(0, 1, 2, 3), 0],       # root
+                #     [(0, 1, 4), 1],          # left hip
+                #     [(4, 7, 10), 2],         # left leg
+                #     [(0, 2, 5), 3],          # right hip
+                #     [(5, 8, 11), 4],         # right leg
+                #     [(0, 3, 6, 9), 5],       # spine
+                #     [(9, 6, 12, 13, 14), 6], # chest
+                #     [(9, 13, 16), 7],        # left shoulder
+                #     [(16, 18, 20), 8],       # left arm
+                #     [(9, 14, 17), 9],        # right shoulder
+                #     [(17, 19, 21), 10],      # right arm
+                #     [(9, 12, 15), 11],       # head
+                # ]
                 mapping = [
-                    [(0, 1, 2, 3), 0],       # root
-                    [(0, 1, 4), 1],          # left hip
-                    [(4, 7, 10), 2],         # left leg
-                    [(0, 2, 5), 3],          # right hip
-                    [(5, 8, 11), 4],         # right leg
-                    [(0, 3, 6, 9), 5],       # spine
-                    [(9, 6, 12, 13, 14), 6], # chest
-                    [(9, 13, 16), 7],        # left shoulder
-                    [(16, 18, 20), 8],       # left arm
-                    [(9, 14, 17), 9],        # right shoulder
-                    [(17, 19, 21), 10],      # right arm
-                    [(9, 12, 15), 11],       # head
+                    [(0, 4, 1, 7), 0],
+                    [(0, 4, 5), 1],
+                    [(5, 6), 2],
+                    [(0, 1, 2), 3],
+                    [(2, 3), 4],
+                    [(0, 7, 8), 5],
+                    [(8, 9), 6],
+                    [(8, 11), 7],
+                    [(11, 12, 13), 8],
+                    [(8, 14), 9],
+                    [(14, 15, 16), 10],
+                    [(8, 9, 10), 11],
                 ]
             else:
                 weight = torch.zeros(12, 21)

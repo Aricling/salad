@@ -26,11 +26,11 @@ class VAE(nn.Module):
             param.requires_grad = False
 
     def encode(self, x):
-        x = self.motion_enc(x)  ## 它的职责其实只是把每一个关节点变成到一样的维度
-        x = self.conv_enc(x)    ## 真正的图卷积，时间卷积和降维其实都是这里做的
+        x = self.motion_enc(x)  ## 它的职责其实只是把每一个关节点变成到一样的维度 [bs, T=64, 17, 32]
+        x = self.conv_enc(x)    ## 真正的图卷积，时间卷积和降维其实都是这里做的 [bs, T/4=16, 7, 32]
 
         # latent space
-        x = self.dist(x)
+        x = self.dist(x)    ## 为什么需要这一层，就是为了将其映射到latent space中
         mu, logvar = x.chunk(2, dim=-1)
         z = self.reparameterize(mu, logvar)
 
@@ -39,7 +39,7 @@ class VAE(nn.Module):
         return z, {"loss_kl": loss_kl}
     
     def decode(self, x):
-        x = self.conv_dec(x)    ## len也是2, x.shape=[32,196,22,32]
+        x = self.conv_dec(x)    ## len也是2, x.shape=[32,196,22,32],!!好像训练和测试不一样，训练是64
         x = self.motion_dec(x)
         return x
     

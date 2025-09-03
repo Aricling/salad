@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from models.skeleton.conv import ResSTConv, get_activation
 from models.skeleton.pool import STPool, STUnpool
-from utils.paramUtil import kit_adj_list, t2m_adj_list
+from utils.paramUtil import kit_adj_list, t2m_adj_list, h36m_adj_list
 from utils.skeleton import adj_list_to_edges
 
 
@@ -12,22 +12,19 @@ class MotionEncoder(nn.Module):
         super(MotionEncoder, self).__init__()
 
         self.pose_dim = opt.pose_dim
-        self.joints_num = (self.pose_dim + 1) // 12
+        # self.joints_num = (self.pose_dim + 1) // 12
+        self.joints_num = 17
         self.latent_dim = opt.latent_dim
         self.contact_joints = opt.contact_joints
 
         self.layers = nn.ModuleList()
         for i in range(self.joints_num):
-            if i == 0:
-                input_dim = 7
-            elif i in self.contact_joints:
-                input_dim = 13
-            else:
-                input_dim = 12
+            input_dim=512
+            input_dim_mid = 256
             self.layers.append(nn.Sequential(
-                nn.Linear(input_dim, self.latent_dim),
+                nn.Linear(input_dim, input_dim_mid),
                 get_activation(opt.activation),
-                nn.Linear(self.latent_dim, self.latent_dim),
+                nn.Linear(input_dim_mid, self.latent_dim),
             ))
 
     def forward(self, x):
@@ -43,26 +40,14 @@ class MotionEncoder(nn.Module):
             - local_velocity (B, seq_len, joint_num*3)
             - foot contact (B, seq_len, 4)
         """
-        B, T, D = x.size()
+        B, T, J, D = x.size()   ## 本来是 B, T, 263
+        joints = [x[:,:,joint_id] for joint_id in range(0, J)]
 
-        # split
-        root, ric, rot, vel, contact = torch.split(x, [4, 3 * (self.joints_num - 1), 6 * (self.joints_num - 1), 3 * self.joints_num, 4], dim=-1)
-        ric = ric.reshape(B, T, self.joints_num - 1, 3)
-        rot = rot.reshape(B, T, self.joints_num - 1, 6)
-        vel = vel.reshape(B, T, self.joints_num, 3)
-
-        # joint-wise input
-        joints = [torch.cat([root, vel[:, :, 0]], dim=-1)] # [B, T, 7]]
-        for i in range(1, self.joints_num):
-            joints.append(torch.cat([ric[:, :, i - 1], rot[:, :, i - 1], vel[:, :, i]], dim=-1))
-        for cidx, jidx in enumerate(self.contact_joints):
-            joints[jidx] = torch.cat([joints[jidx], contact[:, :, cidx, None]], dim=-1)
-        
         # encode
         out = []
         for i in range(self.joints_num):
             out.append(self.layers[i](joints[i]))
-        out = torch.stack(out, dim=2)
+        out = torch.stack(out, dim=2)   # [bs, T=64, 32]->[bs, T, 17, 32]
 
         return out
 
@@ -72,23 +57,26 @@ class MotionDecoder(nn.Module):
         super(MotionDecoder, self).__init__()
         
         self.pose_dim = opt.pose_dim
-        self.joints_num = (self.pose_dim + 1) // 12
+        # self.joints_num = (self.pose_dim + 1) // 12
+        self.joints_num = 17
         self.latent_dim = opt.latent_dim
         self.contact_joints = opt.contact_joints
 
         # network components
         self.layers = nn.ModuleList()
         for i in range(self.joints_num):
-            if i == 0:
-                output_dim = 7
-            elif i in self.contact_joints:
-                output_dim = 13
-            else:
-                output_dim = 12
+            # if i == 0:
+            #     output_dim = 7
+            # elif i in self.contact_joints:
+            #     output_dim = 13
+            # else:
+            #     output_dim = 12
+            output_dim=512
+            latent_dim_mid=256
             self.layers.append(nn.Sequential(
-                nn.Linear(self.latent_dim, self.latent_dim),
+                nn.Linear(self.latent_dim, latent_dim_mid),
                 get_activation(opt.activation),
-                nn.Linear(self.latent_dim, output_dim),
+                nn.Linear(latent_dim_mid, output_dim),
             ))
 
     def forward(self, x):
@@ -101,31 +89,7 @@ class MotionDecoder(nn.Module):
         for i in range(self.joints_num):
             out.append(self.layers[i](x[:, :, i]))
         
-        root = out[0]
-        ric_list, rot_list, vel_list = [], [], []
-        for i in range(1, self.joints_num):
-            ric = out[i][:, :, :3]
-            rot = out[i][:, :, 3:9]
-            vel = out[i][:, :, 9:12]
-
-            ric_list.append(ric)
-            rot_list.append(rot)
-            vel_list.append(vel)
-
-        contact = [out[i][:, :, -1] for i in self.contact_joints]
-
-        ric = torch.stack(ric_list, dim=2).reshape(B, T, (J - 1) * 3)
-        rot = torch.stack(rot_list, dim=2).reshape(B, T, (J - 1) * 6)
-        vel = torch.stack(vel_list, dim=2).reshape(B, T, (J - 1) * 3)
-        contact = torch.stack(contact, dim=2).reshape(B, T, len(self.contact_joints))
-
-        motion = torch.cat([
-            root[..., :4], # root
-            ric, # ric
-            rot, # rot
-            torch.cat([root[..., 4:], vel], dim=-1), # vel
-            contact, # contact
-        ], dim=-1)
+        motion = torch.stack(out, dim =-2)
 
         return motion
 
@@ -135,13 +99,14 @@ class STConvEncoder(nn.Module):
         super(STConvEncoder, self).__init__()
 
         # adjacency list
-        self.adj_list = {
-            "t2m": t2m_adj_list,
-            "kit": kit_adj_list,
-        }[opt.dataset_name]
+        # self.adj_list = {
+        #     "t2m": t2m_adj_list,
+        #     "kit": kit_adj_list,
+        # }[opt.dataset_name]
+        self.adj_list = h36m_adj_list
 
         # topology
-        self.edge_list = [adj_list_to_edges(self.adj_list)]
+        self.edge_list = [adj_list_to_edges(self.adj_list)] ## 这个其实是把树形结构转变成俩俩的pair类型
         self.mapping_list = []
 
         # network
