@@ -346,6 +346,7 @@ class CLIP(nn.Module):
 
     def encode_text(self, text, token_projection=True, texts_lens_list=None, return_sen_emb=None):
         return_sen_emb=z_config.get_diy_config().model.clip_use_sen_emb
+        return_text_token_emb = z_config.get_diy_config().model.clip_use_text_token_emb
 
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
         x = x + self.positional_embedding.type(self.dtype)
@@ -377,11 +378,41 @@ class CLIP(nn.Module):
             #     motion_indices.unsqueeze(-1).expand(-1, -1, dim),  # 索引 [batch_size, 28, dim]
             #     x_motion_tokens_proj  # 替换内容 [batch_size, 28, dim]
             # )
-            if return_sen_emb:
+            if return_sen_emb and (not return_text_token_emb):
                 eos_token_id = 49407
                 eos_positions = (text == eos_token_id).float().argmax(dim=1)  # shape: [batch_size]
                 sen_emb = (x[torch.arange(x.shape[0]), eos_positions] @ self.text_projection).unsqueeze(1)
                 return torch.cat([sen_emb, x_motion_tokens_proj],dim=1)
+            elif return_sen_emb and return_text_token_emb:
+                eos_token_id = 49407
+                eos_positions = (text == eos_token_id).float().argmax(dim=1)  # [batch_size]
+
+                # ---- 句子 embedding ----
+                sen_emb = (x[torch.arange(x.shape[0]), eos_positions] @ self.text_projection).unsqueeze(1)  # [bs, 1, dim]
+
+                out_list = []
+                max_len = 77
+                for b in range(x.shape[0]):
+                    # 取 pre_tokens（不包含 eos）
+                    pre_tokens = x[b, :eos_positions[b]]  # [L, dim]
+
+                    # 拼接 [pre_tokens, sen_emb, motion_tokens]
+                    combined = torch.cat([pre_tokens, sen_emb[b], x_motion_tokens_proj[b]], dim=0)  # [L+1+28, dim]，这里其实就是sos+text_tokens+eos+28个motion token
+
+                    # 如果太长，截断
+                    if combined.shape[0] > max_len:
+                        combined = combined[:max_len]
+
+                    # 如果不够，后面补零
+                    pad_len = max_len - combined.shape[0]
+                    if pad_len > 0:
+                        pad = torch.zeros(pad_len, combined.shape[1], device=x.device, dtype=x.dtype)
+                        combined = torch.cat([combined, pad], dim=0)
+
+                    out_list.append(combined)
+
+                out = torch.stack(out_list, dim=0)  # [bs, 77, dim]
+                return out
 
         return x_motion_tokens_proj  # shape: [batch_size, n_ctx, dim]
 

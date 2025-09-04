@@ -239,14 +239,12 @@ class DenoiserTrainer:
         logs = defaultdict(def_value, OrderedDict())
 
         # eval
-        '''
         best_fid, best_div, best_top1, best_top2, best_top3, best_matching = 1000, 100, 0, 0, 0, 100
         best_fid, best_div, best_top1, best_top2, best_top3, best_matching, writer, gt_motion, gen_motion, m_length, cond_list = evaluation_denoiser(
             self.opt.model_dir, eval_val_loader, self.denoiser, self.generate, self.logger, epoch,
             best_fid=best_fid, best_div=best_div, best_top1=best_top1, best_top2=best_top2, best_top3=best_top3, best_matching=best_matching,
             eval_wrapper=eval_wrapper, save=True, draw=True, device=self.opt.device
         )
-        '''
         # else:
         # best_fid, best_div, best_top1, best_top2, best_top3, best_matching = 1000, 100, 0, 0, 0, 100
 

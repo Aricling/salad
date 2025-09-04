@@ -105,18 +105,21 @@ class Denoiser(nn.Module):
             # word_emb, ca_mask, token_pos = self.clip_model.encode_text(text)
             enc_text, texts_len_list = self.clip_model.encode_text(text)
 
-            # # Step 1: 每个长度 +30
-            # lengths_plus_30 = [l + 30 for l in texts_len_list]
-            # # Step 2: 创建 [64, 77] 的 ca_mask
-            # max_len = 77
-            # batch_size = len(texts_len_list)
-            # # 初始化掩码（全 False）
-            # ca_mask = torch.zeros(batch_size, max_len, dtype=torch.bool)
-            # # 逐行设置前 L 个为 True
-            # for i, L in enumerate(lengths_plus_30):
-            #     L_clipped = min(L, max_len)  # 防止越界
-            #     ca_mask[i, :L_clipped] = True
-            ca_mask = torch.ones(enc_text.shape[:2], dtype=torch.bool, device=enc_text.device)
+            #生成ca_mask
+            device = enc_text.device
+            L = enc_text.shape[1]  # 77
+
+            # 将 texts_len_list 转为 tensor，并计算每个样本的有效长度（文本长度 + 28 个 motion token）
+            lengths = torch.tensor(texts_len_list, device=device) + 28  # [B], 每个样本前多少个是有效的
+
+            # 创建一个位置索引矩阵: [B, 77]
+            positions = torch.arange(L, device=device).expand(len(lengths), L)  # [B, 77]
+
+            # 构造 mask: position < length[i]
+            ca_mask = positions < lengths.unsqueeze(1)  # [B, 77] 的 bool tensor
+
+            # 确保类型是 bool
+            ca_mask = ca_mask.bool()
 
             word_emb = self.word_emb(enc_text)  ## 512-> 256
             if use_cached_clip:

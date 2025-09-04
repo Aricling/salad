@@ -2,6 +2,7 @@ model:
   clip_model_path: /home/mengqing/usr/motion-diffusion-model/save/finetune_clip_all__layers/model000450000.pt ## 这个全finetune的是loss最小的，就先用这个
   # clip_model_path: save/finetune_clip_use_multiview/model000450000.pt ## 这个是multiview的权重
   clip_use_sen_emb: True  ## 这个加了发现是很有用的，之后就用这个True
+  clip_use_text_token_emb: True
   use_avg_clip_model: True
   use_contronet_injection: True ## 这个置为True时，目前代码中arch一定得是encoder，decoder就不支持，也没有必要用controlnet注入
   # MDM_model_file: mdm_add_embed_motion
