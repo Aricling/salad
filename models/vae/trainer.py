@@ -94,7 +94,7 @@ class VAETrainer:
         # eval
         best_mse, writer = evaluation_vae(
             self.opt.model_dir, eval_val_loader, self.vae, self.logger, epoch, best_mse=100000, 
-            eval_wrapper=eval_wrapper, save=False)
+            eval_wrapper=eval_wrapper)
 
         # training loop
         while epoch < self.opt.max_epoch:
@@ -160,7 +160,7 @@ class VAETrainer:
             if epoch % self.opt.eval_every_e == 0:
                 best_mse, writer = evaluation_vae(
                     self.opt.model_dir, eval_val_loader, self.vae, self.logger, epoch, best_mse=best_mse, 
-                    eval_wrapper=eval_wrapper, save=False)
+                    eval_wrapper=eval_wrapper)
 
                 # data = torch.cat([self.motion[:4], self.pred_motion[:4]], dim=0).detach().cpu().numpy()
                 data = torch.cat([self.MB_motion[:4], self.pred_MB_motion[:4]], dim=0).detach().cpu().numpy() ## [256,64,17,512]->两个cat成[512,64,17,512]
